@@ -9,13 +9,13 @@ Nom court: <input type=text name='name'/>
 <br>
 <form name='create_path' action='/admin/create_path' method='POST'>
 Depuis: <select name="src">
-%for p in places:
+{% for p in places %}
 	<option value="{{p[0]}}">{{p[1]}}</option>
-%end
+{% endfor %}
 </select> vers: <select name="dst">
-% for p in places:
+{% for p in places %}
 	<option value="{{p[0]}}">{{p[1]}}</option>
-%end
+{% endfor %}
 </select>
 <input type=text name=desc>
 <input type=submit value='créer le lien'/>
