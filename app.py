@@ -99,8 +99,10 @@ def create_object():
         return "Teuteuteu"
     cur = db.cursor()
     print(request.form)
-    cur.execute("INSERT INTO objects (`short_desc`, `location`) VALUES (?, ?)", [request.form["desc"],
-                                                                           request.form["location"]])
+    cur.execute("INSERT INTO objects (`short_desc`, `location`, `pickable`) VALUES (?, ?, ?)",
+                                    [request.form["desc"],
+                                     request.form["location"],
+                                     request.form["pickable"]])
     db.commit()
     return redirect("/")
 
@@ -149,7 +151,7 @@ def pick_up(obj_id):
 
     cur.execute("""UPDATE objects
                     SET location=-1, picked_by=?  
-                    WHERE location=? AND id=? AND pickable=1""",
+                    WHERE location=? AND id=? AND pickable=1 AND picked_by=-1""",
                 (uid, cloc, obj_id))
     db.commit()
     cur.close()

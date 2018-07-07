@@ -31,6 +31,7 @@ Location: <select name=location>
 {% endfor %}
 </select>
 <input type=submit value='create object'/>
+<input type=checkbox name=pickable value=1 checked>pickable
 </form>
 
 <h2>Teleport people</h2>
