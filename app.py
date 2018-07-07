@@ -135,6 +135,46 @@ def go(direction):
     cur.close()
     return redirect("/")
 
+@app.route('/pick_up/<obj_id>', methods=['GET'])
+@requires_auth
+def pick_up(obj_id):
+    db = get_db()
+    cur = db.cursor()
+    auth_user = request.authorization.username
+
+    cur.execute("""SELECT users.id, characters.location 
+                        FROM users 
+                        INNER JOIN characters ON users.username=? AND characters.owner=users.id""", (auth_user,))
+    (uid, cloc) = cur.fetchall()[0]
+
+    cur.execute("""UPDATE objects
+                    SET location=-1, picked_by=?  
+                    WHERE location=? AND id=? AND pickable=1""",
+                (uid, cloc, obj_id))
+    db.commit()
+    cur.close()
+    return redirect("/")
+
+@app.route('/drop/<obj_id>', methods=['GET'])
+@requires_auth
+def drop(obj_id):
+    db = get_db()
+    cur = db.cursor()
+    auth_user = request.authorization.username
+
+    cur.execute("""SELECT users.id, characters.location 
+                        FROM users 
+                        INNER JOIN characters ON users.username=? AND characters.owner=users.id""", (auth_user,))
+    (uid, cloc) = cur.fetchall()[0]
+
+    cur.execute("""UPDATE objects
+                    SET location=?, picked_by=-1  
+                    WHERE picked_by=? AND id=?""",
+                (cloc, uid, obj_id))
+    db.commit()
+    cur.close()
+    return redirect("/")
+
 
 @app.route('/logout')
 def logout():
@@ -171,21 +211,30 @@ def index():
         access.append((row[0], row[1], row[2]))
 
     objects = list()
-    cur.execute("SELECT short_desc FROM objects WHERE location=?", (charac_loc,))
+    cur.execute("SELECT id, short_desc, pickable FROM objects WHERE location=?", (charac_loc,))
     for row in cur.fetchall():
-        objects.append({'desc': row[0]})
+        objects.append({'id': row[0],
+                        'desc': row[1],
+                        'pickable': row[2]})
 
     people = list()
     cur.execute("SELECT name FROM characters WHERE location=? AND id!=?", (charac_loc, charac_id))
     for row in cur.fetchall():
         people.append({'name': row[0]})
 
+    inventory = list()
+    cur.execute("SELECT id, short_desc FROM objects WHERE picked_by=?", (charac_id,))
+    for row in cur.fetchall():
+        inventory.append({'id': row[0],
+                          'desc': row[1]})
+
     context = {'username': auth_user,
                'characname': cname,
                'location': lname,
                'access': access,
                'objects': objects,
-               'people': people}
+               'people': people,
+               'inventory': inventory}
 
     if auth_user in ADMINS:
         context['places'] = list()
