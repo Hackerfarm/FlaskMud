@@ -90,6 +90,35 @@ def create_place():
     db.commit()
     return redirect("/")
 
+@app.route('/admin/create_object', methods=['POST'])
+@requires_auth
+def create_object():
+    db = get_db()
+    auth_user = request.authorization.username
+    if auth_user not in ADMINS:
+        return "Teuteuteu"
+    cur = db.cursor()
+    print(request.form)
+    cur.execute("INSERT INTO objects (`short_desc`, `location`) VALUES (?, ?)", [request.form["desc"],
+                                                                           request.form["location"]])
+    db.commit()
+    return redirect("/")
+
+@app.route('/admin/teleport_people', methods=['POST'])
+@requires_auth
+def teleport_people():
+    db = get_db()
+    auth_user = request.authorization.username
+    if auth_user not in ADMINS:
+        return "Teuteuteu"
+    cur = db.cursor()
+    print(request.form)
+    cur.execute("UPDATE characters SET location=? WHERE id=?",
+                [request.form["location"],
+                 request.form["person"]])
+    db.commit()
+    return redirect("/")
+
 
 @app.route('/go/<direction>', methods=['GET'])
 @requires_auth
@@ -123,52 +152,50 @@ def index():
     auth_user = request.authorization.username
     cur = db.cursor()
 
-    cur.execute("""SELECT characters.id, U.id
-    			          	  FROM characters 
-    			          	  INNER JOIN users U ON characters.owner = U.id AND U.username=?;""", (auth_user,))
-    charac_id, auth_id = cur.fetchall()[0]
+    cur.execute("""SELECT characters.id, characters.name, U.id, characters.location
+                              FROM characters 
+                              INNER JOIN users U ON characters.owner = U.id AND U.username=?;""", (auth_user,))
+    charac_id, cname, auth_id, charac_loc = cur.fetchall()[0]
 
-    cur.execute("""SELECT characters.name , locations.name 
-			          	  FROM characters 
-			          	  INNER JOIN users U ON characters.owner = U.id AND U.username=? 
-			          	  INNER JOIN locations ON locations.id = characters.location;""", (auth_user,))
+    cur.execute("SELECT name FROM locations WHERE id = ?;", (charac_loc,))
 
-    cname, lname = cur.fetchall()[0]
+    lname = cur.fetchall()[0][0]
 
     access = list()
-    cur.execute("""SELECT L2.name, L2.id, paths.desc
-    			          	  FROM paths
-    			          	  INNER JOIN locations L1 ON paths.src = L1.id
-   			          	      INNER JOIN locations L2 ON paths.dst = L2.id
-    			          	  INNER JOIN characters ON characters.owner=? AND characters.location = paths.src;""",
-                (auth_id,))
+    cur.execute("""SELECT L.name, L.id, paths.desc FROM paths
+                      INNER JOIN locations L ON (paths.src = L.id AND paths.dst=? AND paths.both_ways=1) OR 
+                                                (paths.dst = L.id AND paths.src=?);""",
+                (charac_loc,charac_loc,))
 
     for row in cur.fetchall():
         access.append((row[0], row[1], row[2]))
-        print(row)
 
-    print()
-    cur.execute("""SELECT L2.name, L2.id, paths.desc
-                              FROM paths
-                              INNER JOIN locations L1 ON paths.dst = L1.id
-                              INNER JOIN locations L2 ON paths.src = L2.id
-                              INNER JOIN characters ON characters.id=? AND characters.location = paths.dst AND paths.both_ways=1;""",
-                (charac_id,))
-
+    objects = list()
+    cur.execute("SELECT short_desc FROM objects WHERE location=?", (charac_loc,))
     for row in cur.fetchall():
-        access.append((row[0], row[1], row[2]))
-        print(row)
+        objects.append({'desc': row[0]})
+
+    people = list()
+    cur.execute("SELECT name FROM characters WHERE location=? AND id!=?", (charac_loc, charac_id))
+    for row in cur.fetchall():
+        people.append({'name': row[0]})
 
     context = {'username': auth_user,
                'characname': cname,
                'location': lname,
-               'access': access}
+               'access': access,
+               'objects': objects,
+               'people': people}
 
     if auth_user in ADMINS:
         context['places'] = list()
         cur.execute("SELECT * FROM locations;")
         for row in cur.fetchall():
             context['places'].append(row)
+        context['characters'] = list()
+        cur.execute("SELECT * FROM characters;")
+        for row in cur.fetchall():
+            context['characters'].append(row)
         cur.close()
         return render_template('index.tpl', **context) + render_template('admin.tpl', **context)
     else:

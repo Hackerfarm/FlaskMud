@@ -1,7 +1,6 @@
 <html>
-<head>JDR 1</head>
+<title>Flask RPG</title>
 <body>
-<p>Bouh!</p>
 <p>Welcome {{username}},<br>
 {{characname}} is now at {{location}} and has access to:<br>
 <ul>
@@ -10,6 +9,25 @@
 {% endfor %}
 </ul>
 </p>
+
+{% if people|length>0 %}
+    People in this place:
+    <ul>
+    {% for l in people %}
+        <li>{{l['name']}}</li>
+    {% endfor %}
+    </ul>
+{% endif %}
+
+{% if objects|length>0 %}
+    Objects in this place:
+    <ul>
+    {% for l in objects %}
+        <li>{{l['desc']}}</li>
+    {% endfor %}
+    </ul>
+{% endif %}
+
 <a href='http://log:out@localhost:8088/logout'>logout</a>
 </body>
 
